@@ -67,28 +67,22 @@ impl Map {
                 if t.0 >= 6 && overridable(u, self.get(&(t.0 - 1, t.1))) {
                     vec![(t.0 - 1, t.1)]
                 } else {
-                    let mut candidates: Vec<Coordinate> = vec![];
-                    for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (-1i16, 0i16)] {
-                        let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
-                        if overridable(u, self.get(&m)) {
-                            candidates.push(m);
-                        }
-                    }
-                    candidates
+                    [(0i16, 1i16), (0i16, -1i16), (-1i16, 0i16)]
+                        .into_iter()
+                        .map(|(x, y)| ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8))
+                        .filter(|m| overridable(u, self.get(&m)))
+                        .collect::<Vec<Coordinate>>()
                 }
             }
             BB => {
                 if t.0 <= 5 && overridable(u, self.get(&(t.0 - 1, t.1))) {
                     vec![(t.0 + 1, t.1)]
                 } else {
-                    let mut candidates: Vec<Coordinate> = vec![];
-                    for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (1i16, 0i16)] {
-                        let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
-                        if overridable(u, self.get(&m)) {
-                            candidates.push(m);
-                        }
-                    }
-                    candidates
+                    [(0i16, 1i16), (0i16, -1i16), (1i16, 0i16)]
+                        .into_iter()
+                        .map(|(x, y)| ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8))
+                        .filter(|m| overridable(u, self.get(&m)))
+                        .collect::<Vec<Coordinate>>()
                 }
             }
             RP | BP => Vec::new(),
