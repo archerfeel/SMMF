@@ -87,7 +87,28 @@ impl Map {
             }
             RP | BP => Vec::new(),
             RC | BC => Vec::new(),
-            RM | BM => Vec::new(),
+            RM | BM => [
+                (-2, -1),
+                (-1, -2),
+                (1, -2),
+                (2, -1),
+                (2, 1),
+                (1, 2),
+                (-1, 2),
+                (-2, 1),
+            ]
+            .into_iter()
+            .map(|(x, y)| ((t.0 as i16 + x, t.1 as i16 + y)))
+            .filter(|(x, y)| *x > 0 && *x < 11 && *y > 0 && *y < 10)
+            .filter(|(x, y)| {
+                (x - t.0 as i16).abs() == 2
+                    && self.get(&(((x + t.0 as i16) / 2) as u8, t.1)) == EMPTY
+                    || (x - t.1 as i16).abs() == 1
+                        && self.get(&(t.0, ((y + t.1 as i16) / 2) as u8)) == EMPTY
+            })
+            .map(|(x, y)| (x as u8, y as u8))
+            .filter(|d| overridable(u, self.get(&d)))
+            .collect::<Vec<Coordinate>>(),
             RX | BX => match t {
                 (10, 7) => vec![(8, 9), (8, 5)],
                 (10, 3) => vec![(8, 1), (8, 5)],
