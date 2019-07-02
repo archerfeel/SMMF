@@ -1,0 +1,7 @@
+[package]
+name = "SMMF"
+version = "0.1.0"
+authors = ["archerfeel <archerfeel@gmail.com>"]
+edition = "2018"
+
+[dependencies]
