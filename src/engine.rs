@@ -67,7 +67,7 @@ impl Map {
                 if t.0 >= 6 && overridable(u, self.get(&(t.0 - 1, t.1))) {
                     vec![(t.0 - 1, t.1)]
                 } else {
-                    let mut candidates: Vec<Coordinate> = Vec::new();
+                    let mut candidates: Vec<Coordinate> = vec![];
                     for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (-1i16, 0i16)] {
                         let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
                         if overridable(u, self.get(&m)) {
@@ -81,7 +81,7 @@ impl Map {
                 if t.0 <= 5 && overridable(u, self.get(&(t.0 - 1, t.1))) {
                     vec![(t.0 + 1, t.1)]
                 } else {
-                    let mut candidates: Vec<Coordinate> = Vec::new();
+                    let mut candidates: Vec<Coordinate> = vec![];
                     for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (1i16, 0i16)] {
                         let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
                         if overridable(u, self.get(&m)) {
@@ -114,59 +114,26 @@ impl Map {
             .into_iter()
             .filter(|d| overridable(u, self.get(&d)))
             .collect::<Vec<Coordinate>>(),
-            RS => {
-                if t.0 == 9 && t.1 == 5 {
-                    let mut candidates: Vec<Coordinate> = Vec::new();
-                    for d in &[(10u8, 6u8), (10u8, 4u8), (8u8, 6u8), (8u8, 4u8)] {
-                        if overridable(u, self.get(&d)) {
-                            candidates.push(d.clone());
-                        }
-                    }
-                    candidates
-                } else if overridable(u, self.get(&(9, 5))) {
-                    vec![(9, 5)]
-                } else {
-                    Vec::new()
-                }
+            RS | BS => match t {
+                (10, 6) | (10, 4) | (8, 6) | (8, 4) => vec![(9, 5)],
+                (9, 5) => vec![(10, 6), (10, 4), (8, 6), (8, 4)],
+                (1, 6) | (1, 4) | (3, 6) | (3, 4) => vec![(2, 5)],
+                (2, 5) => vec![(1, 6), (1, 4), (3, 6), (3, 4)],
+                _ => vec![],
             }
-            BS => {
-                if t.0 == 2 && t.1 == 5 {
-                    let mut candidates: Vec<Coordinate> = Vec::new();
-                    for d in &[(1u8, 6u8), (1u8, 4u8), (3u8, 6u8), (3u8, 4u8)] {
-                        if overridable(u, self.get(&d)) {
-                            candidates.push(d.clone());
-                        }
-                    }
-                    candidates
-                } else if overridable(u, self.get(&(2, 5))) {
-                    vec![(2, 5)]
-                } else {
-                    Vec::new()
-                }
-            }
-            RJ => {
-                let mut candidates: Vec<Coordinate> = Vec::new();
-                for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)] {
-                    let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
-                    if m.0 >= 8 && m.0 <= 10 && m.1 >= 4 && m.1 <= 6 && overridable(u, self.get(&m))
-                    {
-                        candidates.push(m);
-                    }
-                }
-                candidates
-            }
-            BJ => {
-                let mut candidates: Vec<Coordinate> = Vec::new();
-                for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)] {
-                    let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
-                    if m.0 >= 1 && m.0 <= 3 && m.1 >= 4 && m.1 <= 6 && overridable(u, self.get(&m))
-                    {
-                        candidates.push(m);
-                    }
-                }
-                candidates
-            }
-            _ => Vec::new(),
+            .into_iter()
+            .filter(|d| overridable(u, self.get(&d)))
+            .collect::<Vec<Coordinate>>(),
+            RJ | BJ => [(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)]
+                .into_iter()
+                .map(|(x, y)| ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8))
+                .filter(|(x, y)| {
+                    (*x >= 1u8 && *x <= 3u8 && *y >= 4u8 && *y <= 6u8)
+                        || (*x >= 8u8 && *x <= 10u8 && *y >= 4u8 && *y <= 6u8)
+                })
+                .filter(|m| overridable(u, self.get(&m)))
+                .collect::<Vec<Coordinate>>(),
+            _ => vec![],
         }
     }
 }
