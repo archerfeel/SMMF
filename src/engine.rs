@@ -94,8 +94,26 @@ impl Map {
             RP | BP => Vec::new(),
             RC | BC => Vec::new(),
             RM | BM => Vec::new(),
-            RX => Vec::new(),
-            BX => Vec::new(),
+            RX | BX => match t {
+                (10, 7) => vec![(8, 9), (8, 5)],
+                (10, 3) => vec![(8, 1), (8, 5)],
+                (8, 9) => vec![(6, 7), (10, 7)],
+                (8, 1) => vec![(6, 3), (10, 3)],
+                (6, 7) => vec![(8, 9), (8, 5)],
+                (6, 3) => vec![(8, 1), (8, 5)],
+                (8, 5) => vec![(10, 7), (10, 3), (6, 7), (6, 3)],
+                (1, 7) => vec![(3, 9), (3, 5)],
+                (1, 3) => vec![(3, 1), (3, 5)],
+                (3, 1) => vec![(5, 3), (1, 3)],
+                (3, 9) => vec![(1, 7), (5, 7)],
+                (5, 3) => vec![(3, 1), (3, 5)],
+                (5, 7) => vec![(3, 9), (3, 5)],
+                (3, 5) => vec![(1, 7), (1, 3), (5, 3), (5, 7)],
+                _ => vec![],
+            }
+            .into_iter()
+            .filter(|d| overridable(u, self.get(&d)))
+            .collect::<Vec<Coordinate>>(),
             RS => {
                 if t.0 == 9 && t.1 == 5 {
                     let mut candidates: Vec<Coordinate> = Vec::new();
@@ -125,9 +143,29 @@ impl Map {
                 } else {
                     Vec::new()
                 }
-            },
-            RJ => Vec::new(),
-            BJ => Vec::new(),
+            }
+            RJ => {
+                let mut candidates: Vec<Coordinate> = Vec::new();
+                for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)] {
+                    let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
+                    if m.0 >= 8 && m.0 <= 10 && m.1 >= 4 && m.1 <= 6 && overridable(u, self.get(&m))
+                    {
+                        candidates.push(m);
+                    }
+                }
+                candidates
+            }
+            BJ => {
+                let mut candidates: Vec<Coordinate> = Vec::new();
+                for (x, y) in &[(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)] {
+                    let m = ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8);
+                    if m.0 >= 1 && m.0 <= 3 && m.1 >= 4 && m.1 <= 6 && overridable(u, self.get(&m))
+                    {
+                        candidates.push(m);
+                    }
+                }
+                candidates
+            }
             _ => Vec::new(),
         }
     }
@@ -175,6 +213,7 @@ pub fn test_move() {
 
 #[test]
 pub fn test_candidates() {
+    // 红兵黑卒交替前进
     let mut map = Map::new();
     assert_eq!(&map.get_candidates(&(7, 3)), &[(6, 3)]);
     map.mv(&(7, 3), &(6, 3));
@@ -184,4 +223,7 @@ pub fn test_candidates() {
     map.mv(&(6, 3), &(5, 3));
     assert_eq!(map.data[5], 0x80000001008);
     assert_eq!(&map.get_candidates(&(5, 3)), &[(5, 4), (5, 2), (4, 3)]);
+    // 红帅黑将
+    assert_eq!(&map.get_candidates(&(10, 5)), &[(9, 5)]);
+    assert_eq!(&map.get_candidates(&(1, 5)), &[(2, 5)]);
 }
