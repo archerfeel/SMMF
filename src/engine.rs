@@ -106,7 +106,10 @@ impl Map {
                 _ => vec![],
             }
             .into_iter()
-            .filter(|d| overridable(u, self.get(&d)))
+            .filter(|d| {
+                overridable(u, self.get(&d))
+                    && self.get(&((t.0 + d.0) / 2, (t.1 + d.1) / 2)) == EMPTY
+            })
             .collect::<Vec<Coordinate>>(),
             RS | BS => match t {
                 (10, 6) | (10, 4) | (8, 6) | (8, 4) => vec![(9, 5)],
