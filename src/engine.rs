@@ -1,7 +1,7 @@
 type Line = u64;
 
-pub struct Map {
-    data: [Line; 12],
+pub struct War {
+    map: [Line; 12],
     steps: u32,
     records: Vec<(Coordinate, Coordinate, u8)>,
 }
@@ -39,10 +39,10 @@ fn is_enemy(p0: u8, p1: u8) -> bool {
     p1 != PADDING && p1 != EMPTY && ((p0 & 8u8) ^ (p1 & 8u8) != 0)
 }
 
-impl Map {
-    pub fn new() -> Map {
-        Map {
-            data: [
+impl War {
+    pub fn new() -> War {
+        War {
+            map: [
                 0x88888888888,
                 0x8bcdefedcb8,
                 0x80000000008,
@@ -63,12 +63,12 @@ impl Map {
 
     fn display(&self) {
         for i in 0..13 {
-            println!("{:x}", self.data[i]);
+            println!("{:x}", self.map[i]);
         }
     }
 
     fn get(&self, t: &Coordinate) -> u8 {
-        ((self.data[t.0 as usize] >> (t.1 * 4)) & 0x0f) as u8
+        ((self.map[t.0 as usize] >> (t.1 * 4)) & 0x0f) as u8
     }
 
     pub fn mv(&mut self, from: &Coordinate, to: &Coordinate) -> bool {
@@ -76,9 +76,9 @@ impl Map {
         let t = self.get(&to);
         self.steps += 1;
         self.records.push((from.clone(), to.clone(), t));
-        self.data[from.0 as usize] &= !(0x0fu64 << (from.1 * 4));
-        self.data[to.0 as usize] &= !(0x0fu64 << (to.1 * 4));
-        self.data[to.0 as usize] |= (u as u64) << (to.1 * 4);
+        self.map[from.0 as usize] &= !(0x0fu64 << (from.1 * 4));
+        self.map[to.0 as usize] &= !(0x0fu64 << (to.1 * 4));
+        self.map[to.0 as usize] |= (u as u64) << (to.1 * 4);
         t != RJ && t != BJ
     }
 
@@ -111,7 +111,7 @@ impl Map {
                 let mut candidates: Vec<Coordinate> = vec![];
                 let mask = 0x0fu64 << (t.1 * 4);
                 for offset in 1..t.1 {
-                    if self.data[t.0 as usize] & (mask >> (offset * 4)) == 0u64 {
+                    if self.map[t.0 as usize] & (mask >> (offset * 4)) == 0u64 {
                         candidates.push((t.0, t.1 - offset));
                     } else if is_entity(self.get(&(t.0, t.1 - offset))) {
                         for skip in 1..t.1 - offset {
@@ -126,7 +126,7 @@ impl Map {
                     }
                 }
                 for offset in t.1 + 1..10 {
-                    if self.data[t.0 as usize] & (mask << ((offset - t.1) * 4)) == 0u64 {
+                    if self.map[t.0 as usize] & (mask << ((offset - t.1) * 4)) == 0u64 {
                         candidates.push((t.0, offset));
                     } else if is_entity(self.get(&(t.0, offset))) {
                         for skip in offset + 1..10 {
@@ -141,7 +141,7 @@ impl Map {
                     }
                 }
                 for offset in t.0 + 1..11 {
-                    if self.data[offset as usize] & mask == 0u64 {
+                    if self.map[offset as usize] & mask == 0u64 {
                         candidates.push((offset, t.1));
                     } else if is_entity(self.get(&(offset, t.1))) {
                         for skip in offset + 1..11 {
@@ -156,7 +156,7 @@ impl Map {
                     }
                 }
                 for offset in 1..t.0 {
-                    if self.data[(t.0 - offset) as usize] & mask == 0u64 {
+                    if self.map[(t.0 - offset) as usize] & mask == 0u64 {
                         candidates.push((t.0 - offset, t.1));
                     } else if is_entity(self.get(&(t.0 - offset, t.1))) {
                         for skip in 1..t.0 - offset {
@@ -176,7 +176,7 @@ impl Map {
                 let mut candidates: Vec<Coordinate> = vec![];
                 let mask = 0x0fu64 << (t.1 * 4);
                 for offset in 1..t.1 {
-                    if self.data[t.0 as usize] & (mask >> (offset * 4)) == 0u64 {
+                    if self.map[t.0 as usize] & (mask >> (offset * 4)) == 0u64 {
                         candidates.push((t.0, t.1 - offset));
                     } else if overridable(u, self.get(&(t.0, t.1 - offset))) {
                         candidates.push((t.0, t.1 - offset));
@@ -186,7 +186,7 @@ impl Map {
                     }
                 }
                 for offset in t.1 + 1..10 {
-                    if self.data[t.0 as usize] & (mask << ((offset - t.1) * 4)) == 0u64 {
+                    if self.map[t.0 as usize] & (mask << ((offset - t.1) * 4)) == 0u64 {
                         candidates.push((t.0, offset));
                     } else if overridable(u, self.get(&(t.0, offset))) {
                         candidates.push((t.0, offset));
@@ -196,7 +196,7 @@ impl Map {
                     }
                 }
                 for offset in t.0 + 1..11 {
-                    if self.data[offset as usize] & mask == 0u64 {
+                    if self.map[offset as usize] & mask == 0u64 {
                         candidates.push((offset, t.1));
                     } else if overridable(u, self.get(&(offset, t.1))) {
                         candidates.push((offset, t.1));
@@ -206,7 +206,7 @@ impl Map {
                     }
                 }
                 for offset in 1..t.0 {
-                    if self.data[(t.0 - offset) as usize] & mask == 0u64 {
+                    if self.map[(t.0 - offset) as usize] & mask == 0u64 {
                         candidates.push((t.0 - offset, t.1));
                     } else if overridable(u, self.get(&(t.0 - offset, t.1))) {
                         candidates.push((t.0 - offset, t.1));
@@ -315,7 +315,7 @@ impl Map {
 
 #[test]
 pub fn test_get() {
-    let map = Map::new();
+    let map = War::new();
     assert_eq!(map.get(&(10, 1)), RC);
     assert_eq!(map.get(&(10, 9)), RC);
     assert_eq!(map.get(&(10, 2)), RM);
@@ -341,46 +341,46 @@ pub fn test_move() {
     assert_eq!(overridable(RB, RC), false);
     assert_eq!(overridable(RB, BC), true);
     assert_eq!(overridable(RB, EMPTY), true);
-    let mut map = Map::new();
+    let mut map = War::new();
     // 当头炮
     map.mv(&(8, 2), &(8, 5));
-    assert_eq!(map.data[8], 0x80200200008);
+    assert_eq!(map.map[8], 0x80200200008);
     map.mv(&(8, 5), &(8, 2));
-    assert_eq!(map.data[8], 0x80200000208);
+    assert_eq!(map.map[8], 0x80200000208);
     // 飞象
     map.mv(&(10, 7), &(8, 5));
-    assert_eq!(map.data[8], 0x80200500208);
-    assert_eq!(map.data[10], 0x83406765438);
+    assert_eq!(map.map[8], 0x80200500208);
+    assert_eq!(map.map[10], 0x83406765438);
 }
 
 #[test]
 pub fn test_candidates() {
     // 红兵黑卒交替前进
-    let mut map = Map::new();
-    assert_eq!(&map.get_candidates(&(7, 3)), &[(6, 3)]);
-    map.mv(&(7, 3), &(6, 3));
-    assert_eq!(&map.get_candidates(&(6, 3)), &[(5, 3)]);
-    assert_eq!(&map.get_candidates(&(4, 3)), &[(5, 3)]);
-    map.mv(&(4, 3), &(5, 3));
-    map.mv(&(6, 3), &(5, 3));
-    assert_eq!(map.data[5], 0x80000001008);
-    assert_eq!(&map.get_candidates(&(5, 3)), &[(5, 4), (5, 2), (4, 3)]);
+    let mut war = War::new();
+    assert_eq!(&war.get_candidates(&(7, 3)), &[(6, 3)]);
+    war.mv(&(7, 3), &(6, 3));
+    assert_eq!(&war.get_candidates(&(6, 3)), &[(5, 3)]);
+    assert_eq!(&war.get_candidates(&(4, 3)), &[(5, 3)]);
+    war.mv(&(4, 3), &(5, 3));
+    war.mv(&(6, 3), &(5, 3));
+    assert_eq!(war.map[5], 0x80000001008);
+    assert_eq!(&war.get_candidates(&(5, 3)), &[(5, 4), (5, 2), (4, 3)]);
     // 红帅黑将
-    assert_eq!(&map.get_candidates(&(10, 5)), &[(9, 5)]);
-    assert_eq!(&map.get_candidates(&(1, 5)), &[(2, 5)]);
+    assert_eq!(&war.get_candidates(&(10, 5)), &[(9, 5)]);
+    assert_eq!(&war.get_candidates(&(1, 5)), &[(2, 5)]);
     // 红车
-    assert_eq!(map.get_candidates(&(10, 1)), &[(9, 1), (8, 1)]);
-    map.mv(&(10, 1), &(8, 1));
-    assert_eq!(map.get_candidates(&(8, 1)), &[(9, 1), (10, 1)]);
-    map.mv(&(8, 2), &(8, 5));
-    assert_eq!(map.data[8], 0x80200200038);
+    assert_eq!(war.get_candidates(&(10, 1)), &[(9, 1), (8, 1)]);
+    war.mv(&(10, 1), &(8, 1));
+    assert_eq!(war.get_candidates(&(8, 1)), &[(9, 1), (10, 1)]);
+    war.mv(&(8, 2), &(8, 5));
+    assert_eq!(war.map[8], 0x80200200038);
     assert_eq!(
-        map.get_candidates(&(8, 1)),
+        war.get_candidates(&(8, 1)),
         &[(8, 2), (8, 3), (8, 4), (9, 1), (10, 1)]
     );
-    map.mv(&(8, 1), &(8, 4));
+    war.mv(&(8, 1), &(8, 4));
     assert_eq!(
-        map.get_candidates(&(8, 4)),
+        war.get_candidates(&(8, 4)),
         &[
             (8, 3),
             (8, 2),
@@ -395,16 +395,16 @@ pub fn test_candidates() {
             (1, 4),
         ]
     );
-    map.mv(&(8, 4), &(1, 4));
-    assert_eq!(map.get_candidates(&(1, 5)), &[(1, 4), (2, 5)]);
+    war.mv(&(8, 4), &(1, 4));
+    assert_eq!(war.get_candidates(&(1, 5)), &[(1, 4), (2, 5)]);
 }
 
 #[test]
 pub fn test_candidates_1() {
-    let mut map = Map::new();
-    map.mv(&(8, 2), &(8, 5));
+    let mut war = War::new();
+    war.mv(&(8, 2), &(8, 5));
     assert_eq!(
-        map.get_candidates(&(8, 5)),
+        war.get_candidates(&(8, 5)),
         &[
             (8, 4),
             (8, 3),
@@ -416,9 +416,9 @@ pub fn test_candidates_1() {
             (4, 5)
         ]
     );
-    map.mv(&(8, 5), &(4, 5));
+    war.mv(&(8, 5), &(4, 5));
     assert_eq!(
-        map.get_candidates(&(4, 5)),
+        war.get_candidates(&(4, 5)),
         &[
             (4, 4),
             (4, 1),
@@ -434,12 +434,12 @@ pub fn test_candidates_1() {
 
 #[test]
 pub fn test_candidates_2() {
-    let mut map = Map::new();
-    map.mv(&(4, 5), &(5, 5));
-    map.mv(&(7, 5), &(6, 5));
-    map.mv(&(5, 5), &(6, 5));
-    assert_eq!(&map.get_candidates(&(6, 5)), &[(6, 6), (6, 4), (7, 5)]);
-    map.mv(&(6, 5), &(6, 4));
-    assert_eq!(&map.get_candidates(&(10, 5)), &[(9, 5), (1, 5)]);
-    assert_eq!(&map.get_candidates(&(1, 5)), &[(2, 5), (10, 5)]);
+    let mut war = War::new();
+    war.mv(&(4, 5), &(5, 5));
+    war.mv(&(7, 5), &(6, 5));
+    war.mv(&(5, 5), &(6, 5));
+    assert_eq!(&war.get_candidates(&(6, 5)), &[(6, 6), (6, 4), (7, 5)]);
+    war.mv(&(6, 5), &(6, 4));
+    assert_eq!(&war.get_candidates(&(10, 5)), &[(9, 5), (1, 5)]);
+    assert_eq!(&war.get_candidates(&(1, 5)), &[(2, 5), (10, 5)]);
 }
