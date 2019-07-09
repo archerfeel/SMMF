@@ -2,6 +2,8 @@ type Line = u64;
 
 pub struct Map {
     data: [Line; 12],
+    steps: u32,
+    records: Vec<(Coordinate, Coordinate, u8)>,
 }
 
 pub type Coordinate = (u8, u8);
@@ -29,6 +31,14 @@ fn overridable(p0: u8, p1: u8) -> bool {
     p1 != PADDING && ((p0 & 8u8) ^ (p1 & 8u8) != 0 || p1 == EMPTY)
 }
 
+fn is_entity(p: u8) -> bool {
+    p != EMPTY && p != PADDING
+}
+
+fn is_enemy(p0: u8, p1: u8) -> bool {
+    p1 != PADDING && p1 != EMPTY && ((p0 & 8u8) ^ (p1 & 8u8) != 0)
+}
+
 impl Map {
     pub fn new() -> Map {
         Map {
@@ -46,6 +56,14 @@ impl Map {
                 0x83456765438,
                 0x88888888888,
             ],
+            steps: 0,
+            records: vec![],
+        }
+    }
+
+    fn display(&self) {
+        for i in 0..13 {
+            println!("{:x}", self.data[i]);
         }
     }
 
@@ -53,11 +71,15 @@ impl Map {
         ((self.data[t.0 as usize] >> (t.1 * 4)) & 0x0f) as u8
     }
 
-    pub fn mv(&mut self, from: &Coordinate, to: &Coordinate) {
+    pub fn mv(&mut self, from: &Coordinate, to: &Coordinate) -> bool {
         let u = self.get(&from);
+        let t = self.get(&to);
+        self.steps += 1;
+        self.records.push((from.clone(), to.clone(), t));
         self.data[from.0 as usize] &= !(0x0fu64 << (from.1 * 4));
         self.data[to.0 as usize] &= !(0x0fu64 << (to.1 * 4));
         self.data[to.0 as usize] |= (u as u64) << (to.1 * 4);
+        t != RJ && t != BJ
     }
 
     pub fn get_candidates(&self, t: &Coordinate) -> Vec<Coordinate> {
@@ -85,7 +107,71 @@ impl Map {
                         .collect::<Vec<Coordinate>>()
                 }
             }
-            RP | BP => vec![],
+            RP | BP => {
+                let mut candidates: Vec<Coordinate> = vec![];
+                let mask = 0x0fu64 << (t.1 * 4);
+                for offset in 1..t.1 {
+                    if self.data[t.0 as usize] & (mask >> (offset * 4)) == 0u64 {
+                        candidates.push((t.0, t.1 - offset));
+                    } else if is_entity(self.get(&(t.0, t.1 - offset))) {
+                        for skip in 1..t.1 - offset {
+                            if is_enemy(u, self.get(&(t.0, t.1 - offset - skip))) {
+                                candidates.push((t.0, t.1 - offset - skip));
+                                break;
+                            }
+                        }
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                for offset in t.1 + 1..10 {
+                    if self.data[t.0 as usize] & (mask << ((offset - t.1) * 4)) == 0u64 {
+                        candidates.push((t.0, offset));
+                    } else if is_entity(self.get(&(t.0, offset))) {
+                        for skip in offset + 1..10 {
+                            if is_enemy(u, self.get(&(t.0, skip))) {
+                                candidates.push((t.0, skip));
+                                break;
+                            }
+                        }
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                for offset in t.0 + 1..11 {
+                    if self.data[offset as usize] & mask == 0u64 {
+                        candidates.push((offset, t.1));
+                    } else if is_entity(self.get(&(offset, t.1))) {
+                        for skip in offset + 1..11 {
+                            if is_enemy(u, self.get(&(skip, t.1))) {
+                                candidates.push((skip, t.1));
+                                break;
+                            }
+                        }
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                for offset in 1..t.0 {
+                    if self.data[(t.0 - offset) as usize] & mask == 0u64 {
+                        candidates.push((t.0 - offset, t.1));
+                    } else if is_entity(self.get(&(t.0 - offset, t.1))) {
+                        for skip in 1..t.0 - offset {
+                            if is_enemy(u, self.get(&(t.0 - offset - skip, t.1))) {
+                                candidates.push((t.0 - offset - skip, t.1));
+                                break;
+                            }
+                        }
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                candidates
+            }
             RC | BC => {
                 let mut candidates: Vec<Coordinate> = vec![];
                 let mask = 0x0fu64 << (t.1 * 4);
@@ -186,15 +272,42 @@ impl Map {
             .into_iter()
             .filter(|d| overridable(u, self.get(&d)))
             .collect::<Vec<Coordinate>>(),
-            RJ | BJ => [(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)]
-                .into_iter()
-                .map(|(x, y)| ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8))
-                .filter(|(x, y)| {
-                    (*x >= 1u8 && *x <= 3u8 && *y >= 4u8 && *y <= 6u8)
-                        || (*x >= 8u8 && *x <= 10u8 && *y >= 4u8 && *y <= 6u8)
-                })
-                .filter(|m| overridable(u, self.get(&m)))
-                .collect::<Vec<Coordinate>>(),
+            RJ => {
+                let mut candidates = [(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)]
+                    .into_iter()
+                    .map(|(x, y)| ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8))
+                    .filter(|(x, y)| *x >= 8u8 && *x <= 10u8 && *y >= 4u8 && *y <= 6u8)
+                    .filter(|m| overridable(u, self.get(&m)))
+                    .collect::<Vec<Coordinate>>();
+                for i in 1..t.0 {
+                    if self.get(&(t.0 - i, t.1)) == BJ {
+                        candidates.push((t.0 - i, t.1));
+                        break;
+                    }
+                    if self.get(&(t.0 - i, t.1)) != EMPTY {
+                        break;
+                    }
+                }
+                candidates
+            }
+            BJ => {
+                let mut candidates = [(0i16, 1i16), (0i16, -1i16), (1i16, 0i16), (-1i16, 0i16)]
+                    .into_iter()
+                    .map(|(x, y)| ((t.0 as i16 + x) as u8, (t.1 as i16 + y) as u8))
+                    .filter(|(x, y)| *x >= 1u8 && *x <= 3u8 && *y >= 4u8 && *y <= 6u8)
+                    .filter(|m| overridable(u, self.get(&m)))
+                    .collect::<Vec<Coordinate>>();
+                for i in t.0 + 1..11 {
+                    if self.get(&(i, t.1)) == RJ {
+                        candidates.push((i, t.1));
+                        break;
+                    }
+                    if self.get(&(i, t.1)) != EMPTY {
+                        break;
+                    }
+                }
+                candidates
+            }
             _ => vec![],
         }
     }
@@ -284,4 +397,49 @@ pub fn test_candidates() {
     );
     map.mv(&(8, 4), &(1, 4));
     assert_eq!(map.get_candidates(&(1, 5)), &[(1, 4), (2, 5)]);
+}
+
+#[test]
+pub fn test_candidates_1() {
+    let mut map = Map::new();
+    map.mv(&(8, 2), &(8, 5));
+    assert_eq!(
+        map.get_candidates(&(8, 5)),
+        &[
+            (8, 4),
+            (8, 3),
+            (8, 2),
+            (8, 1),
+            (8, 6),
+            (8, 7),
+            (9, 5),
+            (4, 5)
+        ]
+    );
+    map.mv(&(8, 5), &(4, 5));
+    assert_eq!(
+        map.get_candidates(&(4, 5)),
+        &[
+            (4, 4),
+            (4, 1),
+            (4, 6),
+            (4, 9),
+            (5, 5),
+            (6, 5),
+            (3, 5),
+            (2, 5)
+        ]
+    );
+}
+
+#[test]
+pub fn test_candidates_2() {
+    let mut map = Map::new();
+    map.mv(&(4, 5), &(5, 5));
+    map.mv(&(7, 5), &(6, 5));
+    map.mv(&(5, 5), &(6, 5));
+    assert_eq!(&map.get_candidates(&(6, 5)), &[(6, 6), (6, 4), (7, 5)]);
+    map.mv(&(6, 5), &(6, 4));
+    assert_eq!(&map.get_candidates(&(10, 5)), &[(9, 5), (1, 5)]);
+    assert_eq!(&map.get_candidates(&(1, 5)), &[(2, 5), (10, 5)]);
 }
