@@ -85,8 +85,52 @@ impl Map {
                         .collect::<Vec<Coordinate>>()
                 }
             }
-            RP | BP => Vec::new(),
-            RC | BC => Vec::new(),
+            RP | BP => vec![],
+            RC | BC => {
+                let mut candidates: Vec<Coordinate> = vec![];
+                let mask = 0x0fu64 << (t.1 * 4);
+                for offset in 1..t.1 {
+                    if self.data[t.0 as usize] & (mask >> (offset * 4)) == 0u64 {
+                        candidates.push((t.0, t.1 - offset));
+                    } else if overridable(u, self.get(&(t.0, t.1 - offset))) {
+                        candidates.push((t.0, t.1 - offset));
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                for offset in t.1 + 1..10 {
+                    if self.data[t.0 as usize] & (mask << ((offset - t.1) * 4)) == 0u64 {
+                        candidates.push((t.0, offset));
+                    } else if overridable(u, self.get(&(t.0, offset))) {
+                        candidates.push((t.0, offset));
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                for offset in t.0 + 1..11 {
+                    if self.data[offset as usize] & mask == 0u64 {
+                        candidates.push((offset, t.1));
+                    } else if overridable(u, self.get(&(offset, t.1))) {
+                        candidates.push((offset, t.1));
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                for offset in 1..t.0 {
+                    if self.data[(t.0 - offset) as usize] & mask == 0u64 {
+                        candidates.push((t.0 - offset, t.1));
+                    } else if overridable(u, self.get(&(t.0 - offset, t.1))) {
+                        candidates.push((t.0 - offset, t.1));
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                candidates
+            }
             RM | BM => [
                 (-2, -1),
                 (-1, -2),
@@ -99,7 +143,7 @@ impl Map {
             ]
             .into_iter()
             .map(|(x, y)| ((t.0 as i16 + x, t.1 as i16 + y)))
-            .filter(|(x, y)| *x > 0 && *x < 11 && *y > 0 && *y < 10)
+            .filter(|(x, y)| *x > 0 && *x < 11 && *y > 0 && *y < 1)
             .filter(|(x, y)| {
                 (x - t.0 as i16).abs() == 2
                     && self.get(&(((x + t.0 as i16) / 2) as u8, t.1)) == EMPTY
@@ -211,4 +255,33 @@ pub fn test_candidates() {
     // 红帅黑将
     assert_eq!(&map.get_candidates(&(10, 5)), &[(9, 5)]);
     assert_eq!(&map.get_candidates(&(1, 5)), &[(2, 5)]);
+    // 红车
+    assert_eq!(map.get_candidates(&(10, 1)), &[(9, 1), (8, 1)]);
+    map.mv(&(10, 1), &(8, 1));
+    assert_eq!(map.get_candidates(&(8, 1)), &[(9, 1), (10, 1)]);
+    map.mv(&(8, 2), &(8, 5));
+    assert_eq!(map.data[8], 0x80200200038);
+    assert_eq!(
+        map.get_candidates(&(8, 1)),
+        &[(8, 2), (8, 3), (8, 4), (9, 1), (10, 1)]
+    );
+    map.mv(&(8, 1), &(8, 4));
+    assert_eq!(
+        map.get_candidates(&(8, 4)),
+        &[
+            (8, 3),
+            (8, 2),
+            (8, 1),
+            (9, 4),
+            (7, 4),
+            (6, 4),
+            (5, 4),
+            (4, 4),
+            (3, 4),
+            (2, 4),
+            (1, 4),
+        ]
+    );
+    map.mv(&(8, 4), &(1, 4));
+    assert_eq!(map.get_candidates(&(1, 5)), &[(1, 4), (2, 5)]);
 }
