@@ -1,7 +1,9 @@
-mod engine;
+pub mod ai;
+pub mod engine;
 
 fn main() {
-    for i in (0..10).rev() {
-        println!("{}", i);
-    }
+
+    let mut war = engine::War::new();
+    war.display();
+    let mut ghost = ai::Ghost::new(&war);
 }

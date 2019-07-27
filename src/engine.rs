@@ -2,11 +2,14 @@ type Line = u64;
 
 pub struct War {
     map: [Line; 12],
-    steps: u32,
     records: Vec<(Coordinate, Coordinate, u8)>,
+    check_counter: u32,
 }
 
 pub type Coordinate = (u8, u8);
+
+pub const READ: u8 = 0;
+pub const BLACK: u8 = 1;
 
 pub const EMPTY: u8 = 0x00;
 pub const PADDING: u8 = 0x08;
@@ -56,15 +59,52 @@ impl War {
                 0x83456765438,
                 0x88888888888,
             ],
-            steps: 0,
             records: vec![],
+            check_counter: 0,
         }
     }
 
-    fn display(&self) {
-        for i in 0..13 {
+    pub fn display(&self) {
+        for i in 0..12 {
             println!("{:x}", self.map[i]);
         }
+    }
+
+    pub fn get_current_player(&self) -> u8 {
+        (self.records.len() % 2) as u8
+    }
+
+    pub fn is_over(&self) -> bool {
+        let king_area: Vec<Coordinate> = match self.get_current_player() {
+            READ => vec![
+                (10, 4),
+                (10, 5),
+                (10, 6),
+                (9, 4),
+                (9, 5),
+                (9, 6),
+                (8, 4),
+                (8, 5),
+                (8, 6),
+            ],
+            BLACK => vec![
+                (1, 4),
+                (1, 5),
+                (1, 6),
+                (2, 4),
+                (2, 5),
+                (2, 6),
+                (3, 4),
+                (3, 5),
+                (3, 6),
+            ],
+            _ => vec![],
+        };
+        king_area.into_iter().any(|t| self.get(&t) & 0x07 == RJ)
+    }
+
+    pub fn is_checking(&self) -> Vec<Coordinate> {
+        vec![]
     }
 
     fn get(&self, t: &Coordinate) -> u8 {
@@ -72,14 +112,16 @@ impl War {
     }
 
     pub fn mv(&mut self, from: &Coordinate, to: &Coordinate) -> bool {
+        if self.get_candidates(&from).contains(&to) {
+            return false;
+        }
         let u = self.get(&from);
         let t = self.get(&to);
-        self.steps += 1;
         self.records.push((from.clone(), to.clone(), t));
         self.map[from.0 as usize] &= !(0x0fu64 << (from.1 * 4));
         self.map[to.0 as usize] &= !(0x0fu64 << (to.1 * 4));
         self.map[to.0 as usize] |= (u as u64) << (to.1 * 4);
-        t != RJ && t != BJ
+        true
     }
 
     pub fn get_candidates(&self, t: &Coordinate) -> Vec<Coordinate> {
